@@ -34,23 +34,17 @@ func main() {
 			fmt.Println()
 
 			if req.Body != nil {
-				// read all bytes from content body and create new stream using it.
-				bodyBytes, _ := ioutil.ReadAll(req.Body)
-				req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
-
-				print_body(bodyBytes)
-
-				// create new request for parsing the body
-				//req2, _ := http.NewRequest(req.Method, req.URL.String(), bytes.NewReader(bodyBytes))
-				//req2.Header = req.Header
-				//req2.ParseForm()
-				//log.Println(req2.Form)
+				bodyBytes, err := ioutil.ReadAll(req.Body)
+				if err != nil {
+					log.Println(err)
+				} else {
+					req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+					print_body(bodyBytes)
+				}
 			}
 
 			req.URL.Scheme = "http"
 			req.URL.Host = target
-			//req.Header.Set("Host", "pkunk.org")
-
 		},
 		ModifyResponse: func(res *http.Response) error {
 			fmt.Println(res.Proto, res.Status)
