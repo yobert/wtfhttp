@@ -78,10 +78,18 @@ func print_headers(headers http.Header) {
 }
 
 func print_body(buf []byte) {
+	trimmed := 0
+	if len(buf) > 8192 {
+		trimmed = len(buf) - 8192
+		buf = buf[0:8192]
+	}
 	escaped := string(buf)
 	escaped = strconv.Quote(escaped)
 	escaped = escaped[1 : len(escaped)-1]
 	escaped = strings.Replace(escaped, "\\n", "\n", -1)
 	escaped = strings.Replace(escaped, "\\\"", "\"", -1)
+	if trimmed > 0 {
+		escaped += fmt.Sprintf(" (trimmed %d bytes)", trimmed)
+	}
 	fmt.Println(escaped)
 }
