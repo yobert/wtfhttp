@@ -28,9 +28,8 @@ func main() {
 
 	proxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
-			log.Println(req.Proto, req.Method, req.URL)
-			print_headers(req.Header)
-			fmt.Println("Host:", req.Host)
+			fmt.Println(BrightText(Magenta)+req.Proto, req.Method+Reset(), Text(Magenta)+req.URL.String()+Reset())
+			print_headers(req.Header, Magenta, map[string][]string{"Host": {req.Host}})
 			fmt.Println()
 
 			if req.Body != nil {
@@ -47,8 +46,8 @@ func main() {
 			req.URL.Host = target
 		},
 		ModifyResponse: func(res *http.Response) error {
-			fmt.Println(res.Proto, res.Status)
-			print_headers(res.Header)
+			fmt.Println(BrightText(Green)+res.Proto, Text(Green)+res.Status+Reset())
+			print_headers(res.Header, Green, map[string][]string{})
 			fmt.Println()
 
 			if res.Body != nil {
@@ -64,15 +63,21 @@ func main() {
 	log.Fatal(http.ListenAndServe(listen, proxy))
 }
 
-func print_headers(headers http.Header) {
+func print_headers(headers http.Header, clr Color, extra map[string][]string) {
 	keys := make([]string, 0, len(headers))
 	for k, _ := range headers {
+		keys = append(keys, k)
+	}
+	for k, _ := range extra {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
 		for _, v := range headers[k] {
-			fmt.Println(k+":", v)
+			fmt.Println(BrightText(clr)+k+Reset()+":", Text(clr)+v+Reset())
+		}
+		for _, v := range extra[k] {
+			fmt.Println(BrightText(clr)+k+Reset()+":", Text(clr)+v+Reset())
 		}
 	}
 }
