@@ -27,6 +27,7 @@ const (
 func main() {
 	listen := ":8080"
 	target := "localhost:80"
+	target_scheme := "http"
 
 	if len(os.Args) > 1 {
 		listen = os.Args[1]
@@ -35,9 +36,17 @@ func main() {
 		target = os.Args[2]
 	}
 
+	if strings.HasPrefix(target, "https://") {
+		target = strings.TrimPrefix(target, "https://")
+		target_scheme = "https"
+	} else if strings.HasPrefix(target, "http://") {
+		target = strings.TrimPrefix(target, "http://")
+		target_scheme = "http"
+	}
+
 	colors := terminal.IsTerminal(int(os.Stdout.Fd()))
 
-	log.Printf("Listening on %s, proxying requests to %s, colors %#v, serialize %#v\n", listen, target, colors, serialize)
+	log.Printf("Listening on %s, proxying requests to %s://%s, colors %#v, serialize %#v\n", listen, target_scheme, target, colors, serialize)
 
 	var nextid uint64
 
@@ -72,8 +81,9 @@ func main() {
 				}
 			}
 
-			req.URL.Scheme = "http"
+			req.URL.Scheme = target_scheme
 			req.URL.Host = target
+			req.Host = target
 
 			req.Header.Set("X-WTF-ID", fmt.Sprintf("%d", id))
 
@@ -145,6 +155,9 @@ func print_headers(dest io.Writer, colors bool, headers http.Header, clr Color, 
 }
 
 func print_mime(dest io.Writer, colors bool, clr Color, buf []byte) {
+	if len(buf) == 0 {
+		return
+	}
 	mtype := mimetype.Detect(buf)
 	if mtype.String() == "application/octet-stream" {
 		return
