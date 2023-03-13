@@ -26,6 +26,13 @@ var (
 	maxheadertail = 24
 	serialize     = false
 	shortheaders  = false
+	keep          = false
+
+	methodcolors = map[string]Color{
+		"GET":  Blue,
+		"POST": Cyan,
+		"PUT":  Magenta,
+	}
 )
 
 var shortheaderlist = map[string]bool{
@@ -61,6 +68,7 @@ var shortheaderlist = map[string]bool{
 }
 
 func main() {
+	flag.BoolVar(&keep, "keep", false, "Save large payloads as files")
 	flag.BoolVar(&shortheaders, "short", false, "Hide unimportant headers")
 	flag.BoolVar(&serialize, "serialize", false, "Force serialization")
 	flag.IntVar(&maxbody, "maxbody", 1024, "Max body bytes to display")
@@ -105,12 +113,17 @@ func main() {
 
 			o := &bytes.Buffer{}
 
+			c, ok := methodcolors[req.Method]
+			if !ok {
+				c = Blue
+			}
+
 			if colors {
-				fmt.Fprintln(o, All(Black, false, Blue)+fmt.Sprintf(" %d ", id)+Reset(), BrightText(Blue)+req.Method+Reset(), Text(Blue)+req.URL.String()+Reset())
+				fmt.Fprintln(o, All(Black, false, c)+fmt.Sprintf(" %d ", id)+Reset(), BrightText(c)+req.Method+Reset(), Text(c)+req.URL.String()+Reset())
 			} else {
 				fmt.Fprintln(o, id, req.Method, req.URL)
 			}
-			print_headers(o, colors, req.Header, Blue, map[string][]string{"Host": {req.Host}})
+			print_headers(o, colors, req.Header, c, map[string][]string{"Host": {req.Host}})
 			fmt.Fprintln(o)
 
 			if req.Body != nil {
@@ -118,7 +131,7 @@ func main() {
 				if err != nil {
 					log.Println(err)
 				} else {
-					print_mime(o, colors, Blue, bodyBytes)
+					print_mime(o, colors, c, bodyBytes)
 					req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 					print_body(o, bodyBytes)
 				}
@@ -225,6 +238,8 @@ func print_body(dest io.Writer, buf []byte) {
 		return
 	}
 
+	orig := buf
+
 	trimmed := 0
 	if len(buf) > maxbody {
 		trimmed = len(buf) - maxbody
@@ -238,6 +253,26 @@ func print_body(dest io.Writer, buf []byte) {
 	if trimmed > 0 {
 		escaped += fmt.Sprintf(" (trimmed %d bytes)", trimmed)
 	}
-	fmt.Fprintln(dest, strings.TrimSpace(escaped))
+	escaped = strings.TrimSpace(escaped)
+
+	if keep && escaped != string(orig) {
+		fh, err := os.CreateTemp("", "wtfhttp_")
+		if err != nil {
+			fmt.Fprintln(dest, err)
+			return
+		}
+		defer fh.Close()
+		if _, err := fh.Write(orig); err != nil {
+			fmt.Fprintln(dest, err)
+			return
+		}
+		if err := fh.Close(); err != nil {
+			fmt.Fprintln(dest, err)
+			return
+		}
+		escaped = fh.Name() + " " + escaped
+	}
+
+	fmt.Fprintln(dest, escaped)
 	fmt.Fprintln(dest)
 }
